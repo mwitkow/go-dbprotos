@@ -37,7 +37,7 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 	p.In()
 
 	for _, field := range message.Field {
-		p.P("// processing field: ", field.GetName(), ` type `, field.Type.String(), "type name", field.GetTypeName())
+		//p.P("// processing field: ", field.GetName(), ` type `, field.Type.String(), "type name", field.GetTypeName())
 
 		datastoreOpt := getDatastoreFieldOpt(field)
 		if datastoreOpt == nil || datastoreOpt.GetName() == "" {
