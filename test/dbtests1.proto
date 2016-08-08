@@ -1,0 +1,41 @@
+// Copyright 2016 Michal Witkowski. All Rights Reserved.
+// See LICENSE for licensing terms.
+
+syntax = "proto3";
+package dbprototest;
+
+
+import "github.com/mwitkow/go-dbprotos/dbprotos.proto";
+import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto"; // from google/protobuf/timestamp.proto
+
+message TestProto1 {
+  option (dbp.entity).datastore.kind = "TestProtoKind";
+
+  string UnusedField = 1;
+
+  string SomeSingleString = 2 [
+    (dbp.datastore).name = "single_string",
+    (dbp.index).single = true
+  ];
+
+  repeated string SomeMultiString = 4 [
+    (dbp.datastore) = {name: "multi_string"},
+    (dbp.index) = { single: True, composite: [ {id: "first"}, {id: "second" } ] }
+  ];
+
+  google.protobuf.Timestamp SomeSingleTime = 5 [
+    (dbp.datastore) = {name: "single_time"},
+    (dbp.index) = { single: True }
+  ];
+  repeated int32 SomeMultiInt = 6 [
+    (dbp.datastore) = {name: "multi_int"},
+    (dbp.index) = { single: True }
+  ];
+
+  repeated google.protobuf.Timestamp SomeMultiTimes = 7 [
+    (dbp.datastore) = {name: "multi_time"},
+    (dbp.index) = { single: False }
+  ];
+}
+
+

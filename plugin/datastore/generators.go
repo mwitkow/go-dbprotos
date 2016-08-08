@@ -1,19 +1,17 @@
 // Copyright 2016 Michal Witkowski. All Rights Reserved.
 // See LICENSE for licensing terms.
 
-package plugin
+package datastore
 
 import (
-	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
 	"github.com/gogo/protobuf/protoc-gen-gogo/generator"
-	"github.com/mwitkow/go-dbprotos"
+	"github.com/mwitkow/go-dbprotos/plugin"
 )
 
-func (p *plugin) generateDatastoreKind(message *descriptor.DescriptorProto) {
+func (p *datastorePlugin) generateDatastoreKind(message *descriptor.DescriptorProto) {
 	ccTypeName := generator.CamelCase(message.GetName())
-
-	emo := getEntityOptIfAny(message)
+	emo := plugin.GetEntityOptIfAny(message)
 	if emo == nil {
 		return
 	}
@@ -24,13 +22,13 @@ func (p *plugin) generateDatastoreKind(message *descriptor.DescriptorProto) {
 	p.P(`var `, ccTypeName, `_DatastoreKind = "`, kind, `"`)
 }
 
-func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message *generator.Descriptor) {
+func (p *datastorePlugin) generateDatastoreLoader(file *generator.FileDescriptor, message *generator.Descriptor) {
 	ccTypeName := generator.CamelCaseSlice(message.TypeName())
 
-	entityOpt := getEntityOptIfAny(message.DescriptorProto)
+	entityOpt := plugin.GetEntityOptIfAny(message.DescriptorProto)
 	isStrict := entityOpt.Datastore.GetStrictReading()
 
-	p.P(`// Load implements the Google Datastore Entity Property interpreter for this type.`)
+	p.P(`// Save implements the Google Datastore Entity Property interpreter for this type.`)
 	p.P(`func (this *`, ccTypeName, `) Load(props []`, p.datastorePkg.Use(), `.Property) error {`)
 	p.In()
 	p.P(`for _, prop := range props {`)
@@ -39,7 +37,7 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 	for _, field := range message.Field {
 		//p.P("// processing field: ", field.GetName(), ` type `, field.Type.String(), "type name", field.GetTypeName())
 
-		datastoreOpt := getDatastoreFieldOpt(field)
+		datastoreOpt := getDatastoreFieldOptIfAny(field)
 		if datastoreOpt == nil || datastoreOpt.GetName() == "" {
 			p.P(`// field "`, field.GetName(), `" ignored due to no datastore option or no datastore name`)
 			continue
@@ -49,7 +47,7 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 		p.In()
 
 		datastoreType := getDatastoreSimpleGolangType(field)
-		dstType := p.getDestinationType(field)
+		protoType := getGolangProtoType(field)
 		if field.IsRepeated() {
 			p.P(`if v, ok := (prop.Value).([]interface{}); ok {`)
 			p.In()
@@ -59,7 +57,7 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 			if datastoreType != "" {
 				p.P(`if castItem, ok := (item).(`, datastoreType, `); ok {`)
 				p.In()
-				p.P(`this.`, field.GetName(), ` = append(this.`, field.GetName(), `, (`, dstType, `)(castItem))`)
+				p.P(`this.`, field.GetName(), ` = append(this.`, field.GetName(), `, (`, protoType, `)(castItem))`)
 				p.Out()
 			} else if field.GetTypeName() == ".google.protobuf.Timestamp" {
 				p.P(`if castItem, ok := (item).(time.Time); ok {`)
@@ -96,8 +94,6 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 			p.Out()
 			p.P(`}`)
 		}
-
-
 		// End of field generation part.
 		p.P(`continue`)
 		p.Out()
@@ -116,77 +112,58 @@ func (p *plugin) generateDatastoreLoader(file *generator.FileDescriptor, message
 	p.P(`}`)
 }
 
-func (p *plugin) getDestinationType(field *descriptor.FieldDescriptorProto) string {
-	switch *field.Type {
-	case descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		return "float64"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT:
-		return "float32"
-	case descriptor.FieldDescriptorProto_TYPE_INT64:
-		return "int64"
-	case descriptor.FieldDescriptorProto_TYPE_UINT64:
-		return "uint64"
-	case descriptor.FieldDescriptorProto_TYPE_INT32:
-		return "int32"
-	case descriptor.FieldDescriptorProto_TYPE_UINT32:
-		return "uint32"
-	case descriptor.FieldDescriptorProto_TYPE_FIXED64:
-		return "uint64"
-	case descriptor.FieldDescriptorProto_TYPE_FIXED32:
-		return "uint32"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		return "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		return "string"
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		return "[]byte"
-	case descriptor.FieldDescriptorProto_TYPE_SFIXED32:
-		return "int32"
-	case descriptor.FieldDescriptorProto_TYPE_SFIXED64:
-		return "int64"
-	case descriptor.FieldDescriptorProto_TYPE_SINT32:
-		return "int32"
-	case descriptor.FieldDescriptorProto_TYPE_SINT64:
-		return "int64"
-	default:
-		// TODO(michal): YOLO
-		return ""
-	}
-}
+func (p *datastorePlugin) generateDatastoreSaver(file *generator.FileDescriptor, message *generator.Descriptor) {
+	ccTypeName := generator.CamelCaseSlice(message.TypeName())
 
+	p.P(`// Load implements the Google Datastore Entity Property interpreter for this type.`)
+	p.P(`func (this *`, ccTypeName, `) Save() ([]`, p.datastorePkg.Use(), `.Property, error) {`)
+	p.In()
+	p.P(`props := []`, p.datastorePkg.Use(), `.Property{}`)
 
-func getDatastoreSimpleGolangType(field *descriptor.FieldDescriptorProto) string {
-	switch *(field.Type) {
-	case descriptor.FieldDescriptorProto_TYPE_INT32,
-		descriptor.FieldDescriptorProto_TYPE_INT64,
-		descriptor.FieldDescriptorProto_TYPE_SINT32,
-		descriptor.FieldDescriptorProto_TYPE_SINT64,
-		descriptor.FieldDescriptorProto_TYPE_UINT32,
-		descriptor.FieldDescriptorProto_TYPE_UINT64:
-		return "int64"
-	case descriptor.FieldDescriptorProto_TYPE_BOOL:
-		return "bool"
-	case descriptor.FieldDescriptorProto_TYPE_STRING:
-		return "string"
-	case descriptor.FieldDescriptorProto_TYPE_BYTES:
-		return "[]byte"
-	case descriptor.FieldDescriptorProto_TYPE_FLOAT,
-		descriptor.FieldDescriptorProto_TYPE_DOUBLE:
-		return "float64"
-	}
-	return ""
-}
+	for _, field := range message.Field {
 
-func getDatastoreFieldOpt(field *descriptor.FieldDescriptorProto) *dbprotos.DatastoreFieldOpt {
-	if field.GetOptions() == nil {
-		return nil
+		indexOpt := plugin.GetIndexFieldOptIfAny(field)
+		datastoreOpt := getDatastoreFieldOptIfAny(field)
+		if datastoreOpt == nil || datastoreOpt.GetName() == "" {
+			p.P(`// field "`, field.GetName(), `" ignored due to no datastore option or no datastore name`)
+			continue
+		}
+		if datastoreOpt.GetNotWriteable() {
+			p.P(`// IGNORED field "`, field.GetName(), `" due to not writeable option set.`)
+			continue
+		}
+
+		p.P(`{`)
+		p.In()
+		p.P(`prop := `, p.datastorePkg.Use(), `.Property{Name: "`, datastoreOpt.GetName(), `", NoIndex: `, !indexOpt.GetSingle(), `}`)
+		datastoreType := getDatastoreSimpleGolangType(field)
+
+		if field.IsRepeated() {
+			p.P(`arrValue := []interface{}{}`)
+			p.P(`for _, item := range this.`, field.GetName(), ` {`)
+			p.In()
+			if datastoreType != "" {
+				p.P(`value := (`, datastoreType, `)(item)`)
+			} else if field.GetTypeName() == ".google.protobuf.Timestamp" {
+				p.P(`value, _ :=`, p.golangPtypesPkg.Use(), `.Timestamp(item)`)
+			}
+			p.P(`arrValue = append(arrValue, (interface{})(value))`)
+			p.Out()
+			p.P(`}`)
+			p.P(`prop.Value = arrValue`)
+		} else {
+			if datastoreType != "" {
+				p.P(`prop.Value = (`, datastoreType, `)(this.`, field.GetName(), `)`)
+			} else if field.GetTypeName() == ".google.protobuf.Timestamp" {
+				p.P(`prop.Value, _ =`, p.golangPtypesPkg.Use(), `.Timestamp(this.`, field.GetName(), `)`)
+			}
+		}
+		p.P(`props = append(props, prop)`)
+		p.Out()
+		p.P(`}`)
+
 	}
-	e, err := proto.GetExtension(field.GetOptions(), dbprotos.E_Datastore)
-	if err != nil {
-		return nil
-	}
-	if emo, ok := e.(*dbprotos.DatastoreFieldOpt); ok {
-		return emo
-	}
-	return nil
+	p.P(`return props, nil`)
+	p.Out()
+	p.P(`}`)
 }

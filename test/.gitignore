@@ -1,0 +1,3 @@
+*.pb.go
+*.dbproto_datastore.gopb.go
+Makefile

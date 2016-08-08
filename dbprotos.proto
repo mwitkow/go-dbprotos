@@ -1,0 +1,64 @@
+// Copyright 2016 Michal Witkowski. All Rights Reserved.
+// See LICENSE for licensing terms.
+
+// Protocol Buffers extensions for defining datastore Schemas in protos.
+
+syntax = "proto2";
+package dbp;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "dbprotos";
+
+
+// TODO(mwitkow): Email protobuf-global-extension-registry@google.com to get an extension IDs.
+
+extend google.protobuf.MessageOptions {
+  // Adds Google Datastore golang serializers and options.
+  optional EntityMessageOpt entity = 1337001;
+
+}
+
+message EntityMessageOpt {
+  optional DatastoreEntityOpt datastore = 1;
+}
+
+message DatastoreEntityOpt {
+  // Name of the Datastore Kind for this entity.
+  optional string kind = 1;
+
+  // Strict reading defines whether the deserialization of Enities will fail if unknown fields are detected.
+  optional bool strict_reading = 2;
+}
+
+
+extend google.protobuf.FieldOptions {
+
+  // Index configures the indexing behaviour of the field.
+  optional IndexFieldOpt index = 1337102;
+  // Configures datastore extensions
+  optional DatastoreFieldOpt datastore = 1337110;
+}
+
+message DatastoreFieldOpt {
+  // The name that we promise not to change for this field, even if the Protobuf field changes.
+  optional string name = 1;
+
+  // If true, the field will not be written to Datastore, but it can be read from.
+  // This can be used for backwards compatibility.
+  optional bool not_writeable = 2;
+}
+
+message IndexFieldOpt  {
+  // If true, the field will have a single-key index.
+  optional bool single = 1;
+  // Composite indexes of the field, may be many.
+  repeated CompositeIndexOpt composite = 2;
+}
+
+message CompositeIndexOpt {
+  // Id is the identifier of the composite index: other fields with the same id will make up the same composite index.
+  optional string id = 1;
+  // Whether the order is descending (true) or ascending (false).
+  optional bool descending = 2;
+}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/protoc-gen-gogo/generator"
-	dbprotos_plugin "github.com/mwitkow/go-dbprotos/plugin"
+	datastore_plugin "github.com/mwitkow/go-dbprotos/plugin/datastore"
 )
 
 func main() {
@@ -34,10 +34,10 @@ func main() {
 	gen.WrapTypes()
 	gen.SetPackageNames()
 	gen.BuildTypeNameMap()
-	gen.GeneratePlugin(dbprotos_plugin.NewPlugin())
+	gen.GeneratePlugin(datastore_plugin.NewDatastorePlugin())
 
 	for i := 0; i < len(gen.Response.File); i++ {
-		gen.Response.File[i].Name = proto.String(strings.Replace(*gen.Response.File[i].Name, ".pb.go", ".dbproto.go", -1))
+		gen.Response.File[i].Name = proto.String(strings.Replace(*gen.Response.File[i].Name, ".pb.go", ".dbproto_datastore.go", -1))
 	}
 
 	// Send back the results.
