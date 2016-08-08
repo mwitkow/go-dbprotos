@@ -61,12 +61,12 @@ The typical Protobuf concepts apply: if the entity contains fields not present i
 
 ## Roadmap
 
- [*] - working code generator for simple Datastore types and repeated fields
- [*] - tests for compatibility between proto representation and Datastore canonical librayr
- [ ] - support for Enums and nested messages
- [ ] - grooming tools that use `.proto` files to assess compatibility of database tools
- [ ] - support for other Datastore types (GeoPoint, Key)
- [ ] - support for MongoDB and BSON serialization
+ * [x] - working code generator for simple Datastore types and repeated fields
+ * [x] - tests for compatibility between proto representation and Datastore canonical librayr
+ * [ ] - support for Enums and nested messages
+ * [ ] - grooming tools that use `.proto` files to assess compatibility of database tools
+ * [ ] - support for other Datastore types (GeoPoint, Key)
+ * [ ] - support for MongoDB and BSON serialization
  
 
 
