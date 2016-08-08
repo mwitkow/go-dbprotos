@@ -1,6 +1,6 @@
-# Protobuf Key-Value DB schema
+# Protobuf Schema for NoSQL databases
 
-Define your KeyValue store (e.g. Datastore) schema in a Protobuf.
+Define your NoSQL store (e.g. Datastore) schema in a Protobuf. 
 
 *Status*: Work in Progress.
 
